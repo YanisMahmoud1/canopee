@@ -1,0 +1,308 @@
+// Canopée — data model
+// NOTE: string fields commented "enum-like" hold a constrained set of values
+// (enforced in application code via TS unions in src/types) rather than a
+// Prisma `enum`, because SQLite (local dev) has no enum support — this keeps
+// the schema portable to Postgres (prod) without changes.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Identity ----------
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  displayName  String
+  passwordHash String
+  xp           Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  // garden settings (JSON-encoded thresholds/cosmetics, kept flexible)
+  scoreThresholds String @default("{\"sun\":0.8,\"cloud\":0.5}") // JSON: {sun, cloud} as fraction of max points
+  unlockedCosmetics String @default("[]") // JSON string[]
+  activeCosmetic  String? // id of the selected garden decor/theme
+
+  habits       HabitItem[]
+  habitLogs    HabitLog[]
+  categories   Category[]
+  projects     Project[]
+  journalEntries DailyJournal[]
+  energyLogs   EnergyLog[]
+  sportSessions SportSession[]
+  exercises    Exercise[]
+  personalRecords PersonalRecord[]
+  sportGoals   SportGoal[]
+  quests       Quest[]
+  weeklyRetros WeeklyRetro[]
+  todayItems   TodayPriority[]
+}
+
+// ---------- Habits / daily objectives ----------
+
+model Category {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name   String
+  color  String @default("#5b7f5e")
+
+  habits HabitItem[]
+
+  @@unique([userId, name])
+}
+
+model HabitItem {
+  id       String  @id @default(cuid())
+  userId   String
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name     String
+  trackingType String // "BOOLEAN" | "SCALE" | "COUNTER"
+  scaleMin Int?    // for SCALE type, default 1
+  scaleMax Int?    // for SCALE type, default 5 or 10
+  counterTarget Int? // for COUNTER type, goal number to hit 100%
+  points   Int     @default(1)
+  frequency String  // "DAILY" | "SPECIFIC_DAYS" | "WEEKLY"
+  specificDays String @default("[]") // JSON int[] 0=Sunday..6=Saturday, used when frequency=SPECIFIC_DAYS
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  includeInScore Boolean @default(true)
+  archived  Boolean @default(false)
+  order     Int     @default(0)
+  createdAt DateTime @default(now())
+
+  logs HabitLog[]
+
+  @@index([userId, archived])
+}
+
+model HabitLog {
+  id          String   @id @default(cuid())
+  habitItemId String
+  habitItem   HabitItem @relation(fields: [habitItemId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        String   // "YYYY-MM-DD"
+  value       Float    // boolean:0/1, scale: raw value, counter: raw count
+  completed   Boolean  @default(false) // whether it counted as "done" for streak/tree purposes
+  pointsEarned Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([habitItemId, date])
+  @@index([userId, date])
+}
+
+model DailyJournal {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date   String // "YYYY-MM-DD"
+  note   String @default("")
+
+  @@unique([userId, date])
+}
+
+model EnergyLog {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date   String // "YYYY-MM-DD"
+  period String // "MORNING" | "AFTERNOON" | "EVENING"
+  value  Int    // 1-10
+
+  @@unique([userId, date, period])
+}
+
+// ---------- Projects ----------
+
+model Project {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // "LONG_TERM" | "ONE_SHOT" | "RECURRING"
+  title       String
+  description String   @default("")
+  startDate   String?  // "YYYY-MM-DD"
+  dueDate     String?  // "YYYY-MM-DD"
+  status      String   @default("IN_PROGRESS") // "TODO" | "IN_PROGRESS" | "DONE"
+  archived    Boolean  @default(false)
+  notes       String   @default("")
+  createdAt   DateTime @default(now())
+
+  milestones  Milestone[]
+  subTasks    SubTask[]
+  logEntries  ProjectLogEntry[]
+
+  @@index([userId, archived])
+}
+
+model Milestone {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  dueDate   String?  // "YYYY-MM-DD", optional for RECURRING project palier
+  status    String   @default("TODO") // "TODO" | "IN_PROGRESS" | "DONE"
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  subTasks  SubTask[]
+
+  @@index([projectId])
+}
+
+model SubTask {
+  id          String     @id @default(cuid())
+  projectId   String?
+  project     Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestoneId String?
+  milestone   Milestone? @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  name        String
+  done        Boolean    @default(false)
+  order       Int        @default(0)
+
+  @@index([projectId])
+  @@index([milestoneId])
+}
+
+model ProjectLogEntry {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  note      String
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+}
+
+// ---------- Sport ----------
+
+model SportSession {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activityType  String   // free text, e.g. "Musculation", "Course", "Vélo"
+  date          String   // "YYYY-MM-DD"
+  durationMin   Int?
+  rpe           Int?     // 1-10
+  energyBefore  Int?     // 1-10
+  energyAfter   Int?     // 1-10
+  distanceKm    Float?
+  paceOrSpeed   String?  // free text e.g. "5:30/km" or "18km/h"
+  heartRate     Int?
+  elevationGain Int?
+  notes         String   @default("")
+  createdAt     DateTime @default(now())
+
+  sets ExerciseSet[]
+
+  @@index([userId, date])
+}
+
+model Exercise {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name   String
+
+  sets ExerciseSet[]
+  records PersonalRecord[]
+  goals SportGoal[]
+
+  @@unique([userId, name])
+}
+
+model ExerciseSet {
+  id             String       @id @default(cuid())
+  sportSessionId String
+  sportSession   SportSession @relation(fields: [sportSessionId], references: [id], onDelete: Cascade)
+  exerciseId     String
+  exercise       Exercise     @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  setNumber      Int
+  reps           Int
+  weightKg       Float
+
+  @@index([exerciseId])
+  @@index([sportSessionId])
+}
+
+model PersonalRecord {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exerciseId String?
+  exercise   Exercise? @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  activityType String? // used when the PR is for cardio (no Exercise row), e.g. "Course 5km"
+  metric     String   // "1RM_ESTIMATE" | "MAX_WEIGHT" | "BEST_PACE" | "LONGEST_DISTANCE" ...
+  value      Float
+  unit       String   // "kg" | "km" | "min/km" ...
+  achievedAt String   // "YYYY-MM-DD"
+
+  @@index([userId])
+}
+
+model SportGoal {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exerciseId String?
+  exercise   Exercise? @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  activityType String?
+  targetValue Float
+  unit       String
+  targetDate String?  // "YYYY-MM-DD"
+  achieved   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ---------- Gamification extras ----------
+
+model Quest {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  description String @default("")
+  xpReward  Int      @default(20)
+  weekStart String   // "YYYY-MM-DD" (Monday of that week)
+  completed Boolean  @default(false)
+
+  @@index([userId, weekStart])
+}
+
+model WeeklyRetro {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekStart  String   // "YYYY-MM-DD" (Monday)
+  wentWell   String   @default("")
+  didntWork  String   @default("")
+  nextFocus  String   @default("")
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, weekStart])
+}
+
+model TodayPriority {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        String   // "YYYY-MM-DD"
+  label       String
+  priorityLevel String @default("MEDIUM") // "HIGH" | "MEDIUM" | "LOW"
+  isTop3      Boolean  @default(false)
+  done        Boolean  @default(false)
+  estimatedMin Int?
+  actualMin    Int?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, date])
+}

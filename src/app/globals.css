@@ -1,0 +1,150 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------
+   Canopée — direction visuelle
+   Palette "jardin au petit matin" : verts profonds, terre, terracotta,
+   parchemin chaud. Pas de bleu/violet template — tout est ancré nature.
+--------------------------------------------------------------------- */
+
+:root {
+  /* Verts (feuillage / primaire) */
+  --canopy-950: #142117;
+  --canopy-900: #1c2e21;
+  --canopy-700: #2e4a34;
+  --canopy-600: #3c5f42;
+  --canopy-500: #4f7a55;
+  --canopy-400: #6b9a6e;
+  --canopy-300: #94bd92;
+  --canopy-200: #c1dcbc;
+  --canopy-100: #e2eeda;
+
+  /* Terre / écorce */
+  --bark-700: #5a3f2c;
+  --bark-500: #7d5a3d;
+  --bark-300: #b08d68;
+
+  /* Terracotta (accent / CTA) */
+  --terracotta-600: #a8542f;
+  --terracotta-500: #c96f42;
+  --terracotta-400: #dd9160;
+  --terracotta-100: #f4ded0;
+
+  /* Parchemin (fonds) */
+  --parchment-50: #faf7ee;
+  --parchment-100: #f4eeda;
+  --parchment-200: #ece2c4;
+
+  /* Météo / score du jour */
+  --weather-sun: #dfa63a;
+  --weather-cloud: #96a596;
+  --weather-rain: #b1543f;
+  --weather-empty: #d8d2bf;
+
+  --background: var(--parchment-50);
+  --foreground: var(--canopy-950);
+  --surface: #ffffff;
+  --surface-muted: var(--parchment-100);
+  --border-soft: #e4dcc4;
+  --accent: var(--terracotta-500);
+  --accent-strong: var(--terracotta-600);
+  --primary: var(--canopy-600);
+  --primary-strong: var(--canopy-700);
+  --ring: var(--canopy-400);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border-soft: var(--border-soft);
+
+  --color-canopy-950: var(--canopy-950);
+  --color-canopy-900: var(--canopy-900);
+  --color-canopy-700: var(--canopy-700);
+  --color-canopy-600: var(--canopy-600);
+  --color-canopy-500: var(--canopy-500);
+  --color-canopy-400: var(--canopy-400);
+  --color-canopy-300: var(--canopy-300);
+  --color-canopy-200: var(--canopy-200);
+  --color-canopy-100: var(--canopy-100);
+
+  --color-bark-700: var(--bark-700);
+  --color-bark-500: var(--bark-500);
+  --color-bark-300: var(--bark-300);
+
+  --color-terracotta-600: var(--terracotta-600);
+  --color-terracotta-500: var(--terracotta-500);
+  --color-terracotta-400: var(--terracotta-400);
+  --color-terracotta-100: var(--terracotta-100);
+
+  --color-parchment-50: var(--parchment-50);
+  --color-parchment-100: var(--parchment-100);
+  --color-parchment-200: var(--parchment-200);
+
+  --color-weather-sun: var(--weather-sun);
+  --color-weather-cloud: var(--weather-cloud);
+  --color-weather-rain: var(--weather-rain);
+  --color-weather-empty: var(--weather-empty);
+
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-ring: var(--ring);
+
+  --font-display: var(--font-fraunces);
+  --font-sans: var(--font-karla);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canopy-950: #0d150f;
+    --canopy-900: #16221a;
+    --background: #10160f;
+    --foreground: #efe7d3;
+    --surface: #182018;
+    --surface-muted: #1d271d;
+    --border-soft: #2c3527;
+    --accent: #e2865c;
+    --accent-strong: #ef9a6f;
+    --primary: #7fae86;
+    --primary-strong: #a0c9a3;
+    --weather-empty: #3a3d33;
+  }
+}
+
+* {
+  border-color: var(--border-soft);
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-karla), ui-sans-serif, system-ui, sans-serif;
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+}
+
+/* Visible keyboard focus ring everywhere (accessibility) */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* subtle organic scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--canopy-300);
+  border-radius: 999px;
+}
