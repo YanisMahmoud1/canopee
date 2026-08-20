@@ -29,7 +29,7 @@ export default async function TodayPage() {
       where: { userId: user.id, date: { gte: weekStart, lte: date } },
     }),
     prisma.dailyJournal.findUnique({ where: { userId_date: { userId: user.id, date } } }),
-    prisma.todayPriority.findMany({ where: { userId: user.id, date }, orderBy: { createdAt: "asc" } }),
+    prisma.todayPriority.findMany({ where: { userId: user.id, date }, orderBy: { order: "asc" } }),
     prisma.project.findMany({
       where: { userId: user.id, archived: false, dueDate: { not: null, lte: deadlineHorizon, gte: date } },
       include: { milestones: { where: { status: { not: "DONE" }, dueDate: { not: null, lte: deadlineHorizon, gte: date } } } },

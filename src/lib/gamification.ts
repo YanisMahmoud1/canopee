@@ -34,7 +34,7 @@ const DIFFICULTY_RANK: Record<TaskDifficulty, number> = { EASY: 1, MEDIUM: 2, HA
 export const DIFFICULTY_LABELS: Record<TaskDifficulty, string> = {
   EASY: "Facile",
   MEDIUM: "Moyenne",
-  HARD: "Relou",
+  HARD: "Pénible",
 };
 
 export const PRIORITY_LABELS: Record<PriorityLevel, string> = {

@@ -1,11 +1,17 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
-import { addPriorityAction, togglePriorityDoneAction, deletePriorityAction } from "@/lib/actions/priority-actions";
-import { priorityTaskWeight, DIFFICULTY_LABELS, PRIORITY_LABELS } from "@/lib/gamification";
+import {
+  addPriorityAction,
+  togglePriorityDoneAction,
+  deletePriorityAction,
+  movePriorityAction,
+} from "@/lib/actions/priority-actions";
+import { DIFFICULTY_LABELS, PRIORITY_LABELS } from "@/lib/gamification";
 import type { PriorityLevel, TaskDifficulty } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { TaskFocusOverlay } from "./TaskFocusOverlay";
 
 export interface PriorityItem {
   id: string;
@@ -13,6 +19,7 @@ export interface PriorityItem {
   priorityLevel: PriorityLevel;
   difficulty: TaskDifficulty;
   xpReward: number;
+  order: number;
   done: boolean;
   estimatedMin: number | null;
   actualMin: number | null;
@@ -34,37 +41,48 @@ export function PrioritiesPanel({ date, items }: { date: string; items: Priority
   const [pending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
   const [showEstimate, setShowEstimate] = useState(false);
+  const [focusedId, setFocusedId] = useState<string | null>(null);
 
   const { sortedPending, sortedDone } = useMemo(() => {
-    const withWeight = items.map((item) => ({
-      item,
-      weight: priorityTaskWeight(item.priorityLevel, item.difficulty),
-    }));
-    const byWeightDesc = (a: { weight: number }, b: { weight: number }) => b.weight - a.weight;
+    const byOrder = (a: PriorityItem, b: PriorityItem) => a.order - b.order;
     return {
-      sortedPending: withWeight.filter((w) => !w.item.done).sort(byWeightDesc).map((w) => w.item),
-      sortedDone: withWeight.filter((w) => w.item.done).sort(byWeightDesc).map((w) => w.item),
+      sortedPending: items.filter((i) => !i.done).sort(byOrder),
+      sortedDone: items.filter((i) => i.done).sort(byOrder),
     };
   }, [items]);
+
+  const focusedItem = items.find((i) => i.id === focusedId) ?? null;
 
   return (
     <div className="rounded-2xl border border-border-soft bg-surface p-4 sm:p-5">
       <h2 className="font-display text-lg font-semibold text-canopy-900">Ce qui compte aujourd&apos;hui</h2>
       <p className="mb-3 text-xs text-canopy-500">
-        Trié pour t&apos;aider à avaler le crapaud en premier — le plus relou et prioritaire tout en haut.
+        Le plus pénible et prioritaire en tête pour avaler le crapaud en premier — clique une tâche pour la travailler en plein écran.
       </p>
 
       {sortedPending.length > 0 && (
         <ul className="mb-3 flex flex-col gap-2">
           {sortedPending.map((item, i) => (
-            <PriorityRow key={item.id} item={item} isFrog={i === 0} />
+            <PriorityRow
+              key={item.id}
+              item={item}
+              isFrog={i === 0}
+              isFirst={i === 0}
+              isLast={i === sortedPending.length - 1}
+              onFocus={() => setFocusedId(item.id)}
+            />
           ))}
         </ul>
       )}
       {sortedDone.length > 0 && (
         <ul className="mb-3 flex flex-col gap-1.5 border-t border-border-soft pt-2">
-          {sortedDone.map((item) => (
-            <PriorityRow key={item.id} item={item} />
+          {sortedDone.map((item, i) => (
+            <PriorityRow
+              key={item.id}
+              item={item}
+              isFirst={i === 0}
+              isLast={i === sortedDone.length - 1}
+            />
           ))}
         </ul>
       )}
@@ -88,7 +106,7 @@ export function PrioritiesPanel({ date, items }: { date: string; items: Priority
         <select name="difficulty" defaultValue="MEDIUM" aria-label="Difficulté" className="rounded-lg border border-border-soft bg-surface px-2.5 py-2 text-xs">
           <option value="EASY">🍃 Facile</option>
           <option value="MEDIUM">🪵 Moyenne</option>
-          <option value="HARD">🪨 Relou</option>
+          <option value="HARD">🪨 Pénible</option>
         </select>
         <button
           type="button"
@@ -104,11 +122,35 @@ export function PrioritiesPanel({ date, items }: { date: string; items: Priority
           Ajouter
         </Button>
       </form>
+
+      {focusedItem && (
+        <TaskFocusOverlay
+          id={focusedItem.id}
+          label={focusedItem.label}
+          priorityLevel={focusedItem.priorityLevel}
+          difficulty={focusedItem.difficulty}
+          xpReward={focusedItem.xpReward}
+          estimatedMin={focusedItem.estimatedMin}
+          onClose={() => setFocusedId(null)}
+        />
+      )}
     </div>
   );
 }
 
-function PriorityRow({ item, isFrog }: { item: PriorityItem; isFrog?: boolean }) {
+function PriorityRow({
+  item,
+  isFrog,
+  isFirst,
+  isLast,
+  onFocus,
+}: {
+  item: PriorityItem;
+  isFrog?: boolean;
+  isFirst: boolean;
+  isLast: boolean;
+  onFocus?: () => void;
+}) {
   const [done, setDone] = useState(item.done);
   const [, startTransition] = useTransition();
 
@@ -146,7 +188,17 @@ function PriorityRow({ item, isFrog }: { item: PriorityItem; isFrog?: boolean })
             🐸 Le crapaud du jour
           </p>
         )}
-        <span className={done ? "text-canopy-400 line-through" : "text-foreground"}>{item.label}</span>
+        {onFocus && !done ? (
+          <button
+            type="button"
+            onClick={onFocus}
+            className="text-left text-foreground underline decoration-transparent underline-offset-2 hover:decoration-canopy-400"
+          >
+            {item.label}
+          </button>
+        ) : (
+          <span className={done ? "text-canopy-400 line-through" : "text-foreground"}>{item.label}</span>
+        )}
       </div>
 
       <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${PRIORITY_BADGE[item.priorityLevel]}`}>
@@ -159,6 +211,28 @@ function PriorityRow({ item, isFrog }: { item: PriorityItem; isFrog?: boolean })
       {item.estimatedMin != null && (
         <span className="shrink-0 text-[10px] text-canopy-400">~{item.estimatedMin}min</span>
       )}
+
+      <div className="flex shrink-0 items-center gap-0.5">
+        <button
+          type="button"
+          aria-label="Monter"
+          disabled={isFirst}
+          onClick={() => startTransition(async () => { await movePriorityAction(item.id, "up"); })}
+          className="flex h-5 w-5 items-center justify-center rounded text-canopy-400 hover:bg-canopy-100 hover:text-canopy-700 disabled:opacity-20 disabled:hover:bg-transparent"
+        >
+          ▲
+        </button>
+        <button
+          type="button"
+          aria-label="Descendre"
+          disabled={isLast}
+          onClick={() => startTransition(async () => { await movePriorityAction(item.id, "down"); })}
+          className="flex h-5 w-5 items-center justify-center rounded text-canopy-400 hover:bg-canopy-100 hover:text-canopy-700 disabled:opacity-20 disabled:hover:bg-transparent"
+        >
+          ▼
+        </button>
+      </div>
+
       <button
         type="button"
         aria-label="Supprimer"
