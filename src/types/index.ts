@@ -4,6 +4,7 @@ export type ProjectType = "LONG_TERM" | "ONE_SHOT" | "RECURRING";
 export type ProjectStatus = "TODO" | "IN_PROGRESS" | "DONE";
 export type MilestoneStatus = "TODO" | "IN_PROGRESS" | "DONE";
 export type PriorityLevel = "HIGH" | "MEDIUM" | "LOW";
+export type TaskDifficulty = "EASY" | "MEDIUM" | "HARD";
 export type EnergyPeriod = "MORNING" | "AFTERNOON" | "EVENING";
 export type WeatherState = "sun" | "cloud" | "rain" | "empty";
 

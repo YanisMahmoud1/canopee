@@ -299,7 +299,8 @@ model TodayPriority {
   date        String   // "YYYY-MM-DD"
   label       String
   priorityLevel String @default("MEDIUM") // "HIGH" | "MEDIUM" | "LOW"
-  isTop3      Boolean  @default(false)
+  difficulty  String   @default("MEDIUM") // "EASY" | "MEDIUM" | "HARD" ("Relou")
+  xpReward    Int      @default(10) // computed from priority+difficulty at creation
   done        Boolean  @default(false)
   estimatedMin Int?
   actualMin    Int?

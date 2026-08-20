@@ -1,6 +1,6 @@
 import { eachDayOfInterval, subDays } from "date-fns";
 import type { HabitItem, HabitLog } from "@prisma/client";
-import type { TreeStage, TreeState } from "@/types";
+import type { PriorityLevel, TaskDifficulty, TreeStage, TreeState } from "@/types";
 import { isScheduledOn } from "./scoring";
 import { parseDateStr, toDateStr } from "./dates";
 
@@ -24,6 +24,34 @@ export const TREE_STAGE_LABELS: Record<TreeStage, string> = {
   fruiting: "Arbre robuste",
   ancient: "Arbre ancien",
 };
+
+/** "Avaler le crapaud" (eat the frog): the most important AND most tedious
+ * tasks should surface to the top of the day and pay out the most XP, so
+ * finishing them first is always the visibly rewarding move. */
+const PRIORITY_RANK: Record<PriorityLevel, number> = { LOW: 1, MEDIUM: 2, HIGH: 3 };
+const DIFFICULTY_RANK: Record<TaskDifficulty, number> = { EASY: 1, MEDIUM: 2, HARD: 3 };
+
+export const DIFFICULTY_LABELS: Record<TaskDifficulty, string> = {
+  EASY: "Facile",
+  MEDIUM: "Moyenne",
+  HARD: "Relou",
+};
+
+export const PRIORITY_LABELS: Record<PriorityLevel, string> = {
+  HIGH: "Haute",
+  MEDIUM: "Moyenne",
+  LOW: "Basse",
+};
+
+/** Sort weight: higher = more urgent to tackle first. */
+export function priorityTaskWeight(priorityLevel: PriorityLevel, difficulty: TaskDifficulty): number {
+  return PRIORITY_RANK[priorityLevel] + DIFFICULTY_RANK[difficulty];
+}
+
+/** XP payout scales with the same weight, so the frog is always worth eating. */
+export function priorityTaskXp(priorityLevel: PriorityLevel, difficulty: TaskDifficulty): number {
+  return priorityTaskWeight(priorityLevel, difficulty) * 5;
+}
 
 const VIGOR_WINDOW_DAYS = 30;
 const VIGOR_ALPHA = 0.3;

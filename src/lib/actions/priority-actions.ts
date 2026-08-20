@@ -3,19 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSessionUser } from "@/lib/current-user";
+import { priorityTaskXp } from "@/lib/gamification";
+import type { PriorityLevel, TaskDifficulty } from "@/types";
 
 export async function addPriorityAction(formData: FormData) {
   const user = await requireSessionUser();
   const label = String(formData.get("label") ?? "").trim();
   if (!label) return;
   const date = String(formData.get("date"));
-  const priorityLevel = String(formData.get("priorityLevel") || "MEDIUM");
+  const priorityLevel = String(formData.get("priorityLevel") || "MEDIUM") as PriorityLevel;
+  const difficulty = String(formData.get("difficulty") || "MEDIUM") as TaskDifficulty;
   const estimatedMinRaw = formData.get("estimatedMin");
   const estimatedMin = estimatedMinRaw ? Number(estimatedMinRaw) : undefined;
-
-  const top3Count = await prisma.todayPriority.count({
-    where: { userId: user.id, date, isTop3: true },
-  });
 
   await prisma.todayPriority.create({
     data: {
@@ -23,7 +22,8 @@ export async function addPriorityAction(formData: FormData) {
       date,
       label,
       priorityLevel,
-      isTop3: priorityLevel === "HIGH" && top3Count < 3,
+      difficulty,
+      xpReward: priorityTaskXp(priorityLevel, difficulty),
       estimatedMin,
     },
   });
@@ -34,11 +34,19 @@ export async function togglePriorityDoneAction(id: string, actualMin?: number) {
   const user = await requireSessionUser();
   const item = await prisma.todayPriority.findFirst({ where: { id, userId: user.id } });
   if (!item) return;
+  const nextDone = !item.done;
+
   await prisma.todayPriority.update({
     where: { id },
-    data: { done: !item.done, actualMin: actualMin ?? item.actualMin },
+    data: { done: nextDone, actualMin: actualMin ?? item.actualMin },
   });
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { xp: { increment: nextDone ? item.xpReward : -item.xpReward } },
+  });
+
   revalidatePath("/today");
+  revalidatePath("/leaderboard");
 }
 
 export async function deletePriorityAction(id: string) {

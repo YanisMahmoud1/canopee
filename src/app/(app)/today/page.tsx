@@ -83,7 +83,11 @@ export default async function TodayPage() {
 
       <PrioritiesPanel
         date={date}
-        items={priorities.map((p) => ({ ...p, priorityLevel: p.priorityLevel as "HIGH" | "MEDIUM" | "LOW" }))}
+        items={priorities.map((p) => ({
+          ...p,
+          priorityLevel: p.priorityLevel as "HIGH" | "MEDIUM" | "LOW",
+          difficulty: p.difficulty as "EASY" | "MEDIUM" | "HARD",
+        }))}
       />
 
       <QuestCard weekStart={weekStart} quests={quests} />
